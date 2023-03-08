@@ -3,7 +3,7 @@ import * as utils from '../common/utils'
 import * as lang from './lang'
 import { fetchSSE } from './utils'
 
-export type TranslateMode = 'translate' | 'polishing' | 'summarize'
+export type TranslateMode = 'translate' | 'polishing' | 'analyze' | 'summarize'
 
 export interface TranslateQuery {
     text: string
@@ -32,8 +32,8 @@ export async function translate(query: TranslateQuery) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
     }
-    const fromChinese = chineseLangs.indexOf(query.detectFrom) > 0
-    const toChinese = chineseLangs.indexOf(query.detectTo) > 0
+    const fromChinese = chineseLangs.indexOf(query.detectFrom) >= 0
+    const toChinese = chineseLangs.indexOf(query.detectTo) >= 0
     let systemPrompt = 'You are a translation engine that can only translate text and cannot interpret it.'
     let assistantPrompt = `translate from ${lang.langMap.get(query.detectFrom) || query.detectFrom} to ${
         lang.langMap.get(query.detectTo) || query.detectTo
@@ -57,6 +57,14 @@ export async function translate(query: TranslateQuery) {
                 assistantPrompt = `使用 ${lang.langMap.get(query.detectFrom) || query.detectFrom} 语言润色此段文本`
             } else {
                 assistantPrompt = `polish this text in ${lang.langMap.get(query.detectFrom) || query.detectFrom}`
+            }
+            break
+        case 'analyze':
+            systemPrompt = 'You are a translation engine and grammar analyzer.'
+            if (toChinese) {
+                assistantPrompt = `请翻译此段文本并解析其中的语法`
+            } else {
+                assistantPrompt = `translate this text and analyze its grammar in ${lang.langMap.get(query.detectTo) || query.detectTo}`
             }
             break
         case 'summarize':
@@ -83,7 +91,7 @@ export async function translate(query: TranslateQuery) {
                 content: systemPrompt,
             },
             {
-                role: 'assistant',
+                role: 'user',
                 content: assistantPrompt,
             },
             { role: 'user', content: `"${query.text}"` },
